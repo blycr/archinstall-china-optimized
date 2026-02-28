@@ -14,6 +14,16 @@ from archinstall.lib.hardware import SysInfo
 from archinstall.lib.network.wifi_handler import WifiHandler
 from archinstall.lib.networking import ping
 from archinstall.lib.output import debug, error, info, warn
+
+# 中国网络环境优化支持
+try:
+	from archinstall.lib.networking_china import (
+		ChinaNetworkOptimizer,
+		is_network_available,
+	)
+	CHINA_NETWORK_SUPPORT = True
+except ImportError:
+	CHINA_NETWORK_SUPPORT = False
 from archinstall.lib.packages.util import check_version_upgrade
 from archinstall.lib.pacman.pacman import Pacman
 from archinstall.lib.translationhandler import tr
@@ -33,14 +43,55 @@ def _log_sys_info() -> None:
 
 
 def _check_online(wifi_handler: WifiHandler | None = None) -> bool:
+	"""
+	检查网络连接状态
+
+	在Arch ISO环境下，采用多层次的检测策略：
+	1. 首先尝试中国网络检测点（如果支持）
+	2. 其次尝试国际网络检测
+	3. 如果都失败，尝试配置WiFi
+	4. 最终失败后返回False
+	"""
+	# 第一层：中国网络环境检测（优先但非阻塞）
+	if CHINA_NETWORK_SUPPORT:
+		try:
+			if is_network_available():
+				debug('通过中国网络检测点确认网络连接正常')
+				return True
+			debug('中国网络检测点不可达，尝试其他检测方式')
+		except Exception as e:
+			debug(f'中国网络检测出错: {e}')
+
+	# 第二层：国际网络检测（经典方式）
 	try:
 		ping('1.1.1.1')
+		debug('通过国际网络检测确认网络连接正常')
+		return True
 	except OSError as ex:
-		if 'Network is unreachable' in str(ex):
+		error_msg = str(ex)
+		if 'Network is unreachable' in error_msg or 'unknown host' in error_msg.lower():
+			debug(f'国际网络检测失败: {error_msg}')
+			# 网络不可达，尝试WiFi配置
 			if wifi_handler is not None:
+				info('网络连接检测失败，尝试配置 WiFi...')
 				success = not wifi_handler.setup()
 				if not success:
+					warn('WiFi配置失败或用户取消')
 					return False
+				# WiFi配置成功后，递归再次检测
+				return _check_online(None)  # 避免再次触发WiFi配置
+			else:
+				warn('网络不可达且WiFi配置不可用')
+				return False
+		else:
+			# 其他类型的OSError，记录但认为网络可能可用
+			debug(f'ping返回非网络不可达错误: {error_msg}')
+			return True
+	except Exception as e:
+		# 捕获所有其他异常，避免安装器崩溃
+		debug(f'网络检测时发生意外错误: {e}')
+		# 即使有异常，也尝试继续（可能是ping命令问题）
+		return True
 
 	return True
 
@@ -93,6 +144,21 @@ def run() -> int:
 		return 1
 
 	_log_sys_info()
+
+	# 中国网络环境优化：分析网络环境并给出建议
+	# 在ISO环境下，此分析是可选的，不会阻塞安装流程
+	if CHINA_NETWORK_SUPPORT and not arch_config_handler.args.offline:
+		try:
+			info('正在检测网络环境...')
+			china_optimizer = ChinaNetworkOptimizer()
+			# 设置较短的超时，避免在受限环境中长时间等待
+			china_optimizer.analyze_network()
+			if china_optimizer.should_use_china_mirrors:
+				info('将使用中国镜像源以获得更好的下载速度')
+		except Exception as e:
+			# 网络分析失败不应阻塞安装流程
+			debug(f'网络环境分析失败（非关键错误）: {e}')
+			info('继续使用默认网络配置')
 
 	if not arch_config_handler.args.offline:
 		if not arch_config_handler.args.skip_wifi_check:

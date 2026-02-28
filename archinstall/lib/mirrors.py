@@ -18,10 +18,25 @@ from archinstall.lib.models.mirrors import (
 )
 from archinstall.lib.models.packages import Repository
 from archinstall.lib.networking import fetch_data_from_url
-from archinstall.lib.output import FormattedOutput, debug, info
+from archinstall.lib.output import FormattedOutput, debug, info, warn
 from archinstall.lib.translationhandler import tr
 from archinstall.tui.ui.menu_item import MenuItem, MenuItemGroup
 from archinstall.tui.ui.result import ResultType
+
+# 中国网络环境优化：安全导入中国镜像源模块
+# 在Arch ISO环境下，确保即使模块加载失败也不会影响主程序
+CHINA_MIRROR_SUPPORT = False
+inject_china_mirrors = None
+
+try:
+	from archinstall.lib.mirrors_china import inject_china_mirrors
+	CHINA_MIRROR_SUPPORT = True
+except ImportError as e:
+	# 静默处理导入错误，避免在ISO环境下显示不必要的信息
+	debug(f'中国镜像源模块未加载: {e}')
+except Exception as e:
+	# 捕获所有其他异常，确保主程序稳定
+	warn(f'加载中国镜像源模块时出错: {e}')
 
 
 class CustomMirrorRepositoriesList(ListManager[CustomRepository]):
@@ -259,6 +274,15 @@ class MirrorListHandler:
 			except Exception as e:
 				debug(f'Error while fetching mirror list: {e}')
 				time.sleep(attempt_nr + 1)
+
+		# 中国网络环境优化：当无法获取远程镜像列表时，尝试注入中国镜像源
+		if CHINA_MIRROR_SUPPORT:
+			info('无法从 archlinux.org 获取镜像列表，正在加载中国镜像源...')
+			try:
+				inject_china_mirrors(self)
+				return True
+			except Exception as e:
+				warn(f'加载中国镜像源失败: {e}')
 
 		debug('Unable to fetch mirror list remotely, falling back to local mirror list')
 		return False

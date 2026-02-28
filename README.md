@@ -2,11 +2,32 @@
 <img src="https://github.com/archlinux/archinstall/raw/master/docs/logo.png" alt="drawing" width="200"/>
 
 <!-- </div> -->
-# Arch Installer
+# Arch Installer - 中国优化版
 [![Lint Python and Find Syntax Errors](https://github.com/archlinux/archinstall/actions/workflows/flake8.yaml/badge.svg)](https://github.com/archlinux/archinstall/actions/workflows/flake8.yaml)
+
+> 🚀 **专为中文用户优化的 Arch Linux 安装器**
+>
+> 本版本在官方 archinstall 基础上，针对中国网络环境进行了全面优化，包括智能镜像源选择、自动字体配置、网络环境检测等功能。
 
 Just another guided/automated [Arch Linux](https://wiki.archlinux.org/index.php/Arch_Linux) installer with a twist.
 The installer also doubles as a python library to install Arch Linux and manage services, packages, and other things inside the installed system *(Usually from a live medium or from an existing installation)*.
+
+## 🇨🇳 中国优化特性
+
+- **🎯 智能镜像源**：自动检测并使用清华、中科大、阿里云等国内镜像源
+- **🔤 中文字体支持**：自动配置中文字体，支持极端无字体环境
+- **🌐 网络优化**：针对中国网络环境优化连接检测和超时设置
+- **📦 开箱即用**：无需手动配置，启动即自动应用优化
+- **🔒 向后兼容**：不影响国际用户使用，自动检测环境
+
+**快速开始：**
+```bash
+# 在 Arch ISO 中直接运行
+archinstall
+# 优化会自动生效！
+```
+
+📖 **[完整使用指南](docs/USAGE_GUIDE.md)** | 📋 **[快速参考](docs/QUICK_REFERENCE.md)** | 📝 **[中文说明](docs/README_CN.md)**
 
 * archinstall [discord](https://discord.gg/aDeMffrxNg) server
 * archinstall [#archinstall:matrix.org](https://matrix.to/#/#archinstall:matrix.org) Matrix channel
